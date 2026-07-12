@@ -5,9 +5,16 @@ html, body {
   padding: 0;
   background-color: #06060c;
   color: #e6eef3;
+  width: 100%;
+  height: 100%;
+  
+  /* FIX: Kills the elastic mobile browser bounce and locks the app in place */
   overflow: hidden;
+  overscroll-behavior-y: none;
+  touch-action: none; 
 }
 
+/* Custom dark scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }

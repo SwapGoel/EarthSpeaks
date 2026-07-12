@@ -8,7 +8,8 @@ export default function App() {
   const [showLabels, setShowLabels] = useState(true);
 
   return (
-    <div className="w-screen h-screen bg-[#06060c] text-slate-200 font-sans overflow-hidden flex relative selection:bg-[#0b84ff]/30">
+    // FIX: Using fixed inset-0 and 100dvh guarantees it never overflows the mobile browser UI
+    <div className="fixed inset-0 w-full h-[100dvh] bg-[#06060c] text-slate-200 font-sans overflow-hidden flex selection:bg-[#0b84ff]/30">
       
       {/* 3D GLOBE ENGINE */}
       <TorchMap showLabels={showLabels} />
@@ -16,7 +17,7 @@ export default function App() {
       {/* TOP RIGHT SEARCH */}
       <TopSearch />
 
-      {/* LEFT VERTICAL DOCK */}
+      {/* LEFT VERTICAL DOCK / MOBILE BOTTOM BAR */}
       <LeftDock 
         activeTool={activeTool} 
         setActiveTool={setActiveTool} 
