@@ -21,11 +21,16 @@ export default function TorchMap({ showLabels }) {
   useEffect(() => {
     if (mapRef.current) return;
 
+    // FIX: Screen-aware dynamic zoom. 
+    // 1.5 for mobile (fits width perfectly), 2.9 for desktop (cinematic scale).
+    const isMobile = window.innerWidth < 768;
+    const startingZoom = isMobile ? 1.5 : 2.9;
+
     mapRef.current = new maplibregl.Map({
       container: mapContainer.current,
       style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: [-40, 20],
-      zoom: 2.9, 
+      zoom: startingZoom, 
       pitch: 0,
       attributionControl: false,
     });
@@ -58,7 +63,6 @@ export default function TorchMap({ showLabels }) {
         layers.forEach(layer => {
           try {
             if (layer.id.includes('water')) {
-              // FIX: "Steel Navy" - Brighter than the previous slate, but desaturated enough to prevent eye strain.
               mapRef.current.setPaintProperty(layer.id, 'fill-color', '#182c47');
             }
             if (layer.id === 'background') {
@@ -204,9 +208,9 @@ export default function TorchMap({ showLabels }) {
         className={`absolute inset-0 w-full h-full transition-opacity duration-[1500ms] ease-in-out ${isReady ? 'opacity-100' : 'opacity-0'}`} 
       />
 
-      <div className={`absolute bottom-6 right-6 z-40 pointer-events-none transition-opacity duration-[1500ms] delay-500 ${isReady ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`absolute right-4 bottom-24 md:bottom-6 md:right-6 z-40 pointer-events-none transition-opacity duration-[1500ms] delay-500 ${isReady ? 'opacity-100' : 'opacity-0'}`}>
         <div className="absolute inset-0 rounded-full bg-[#00e5ff]/10 blur-xl scale-110"></div>
-        <div className="relative w-[100px] h-[100px] rounded-full overflow-hidden border-[1.5px] border-[#00e5ff30] shadow-[0_0_15px_rgba(0,0,0,0.8)] bg-[#06060c]">
+        <div className="relative w-[80px] h-[80px] md:w-[100px] md:h-[100px] rounded-full overflow-hidden border-[1.5px] border-[#00e5ff30] shadow-[0_0_15px_rgba(0,0,0,0.8)] bg-[#06060c]">
           <div ref={miniMapContainer} className="w-full h-full opacity-80" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#00e5ff] border-[1px] border-white animate-pulse shadow-[0_0_8px_#00e5ff]" />
         </div>
