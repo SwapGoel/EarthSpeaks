@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-export default function TorchMap({ showLabels }) {
+export default function TorchMap({ showLabels, targetLocation }) {
   const mapContainer = useRef(null);
   const miniMapContainer = useRef(null);
   const starsRef = useRef(null);
@@ -12,26 +12,26 @@ export default function TorchMap({ showLabels }) {
   
   const [isReady, setIsReady] = useState(false);
 
-  // Physics Tracking
   const starPos = useRef({ x: 0, y: 0 });
   const lastCenter = useRef({ lng: -40, lat: 20 });
   const lastTime = useRef(performance.now());
   const animationFrameRef = useRef(null);
+  
+  const userInteractedRef = useRef(false); 
 
   useEffect(() => {
     if (mapRef.current) return;
 
-    // FIX: Screen-aware dynamic zoom. 
-    // 1.5 for mobile (fits width perfectly), 2.9 for desktop (cinematic scale).
     const isMobile = window.innerWidth < 768;
-    const startingZoom = isMobile ? 1.5 : 2.9;
+    const startingZoom = isMobile ? 1.6 : 3.2;
 
     mapRef.current = new maplibregl.Map({
       container: mapContainer.current,
       style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: [-40, 20],
-      zoom: startingZoom, 
-      pitch: 0,
+      zoom: startingZoom,
+      maxTileCacheSize: 500, 
+      pitch: 0, 
       attributionControl: false,
     });
 
@@ -45,7 +45,6 @@ export default function TorchMap({ showLabels }) {
     });
 
     let spinFrame;
-    let hasInteracted = false;
 
     miniMapRef.current.on('load', () => {
       try {
@@ -71,21 +70,9 @@ export default function TorchMap({ showLabels }) {
             }
 
             if (layer.type === 'symbol') {
-              const id = layer.id.toLowerCase();
-
               const currentSize = mapRef.current.getLayoutProperty(layer.id, 'text-size');
               if (currentSize) {
                 mapRef.current.setLayoutProperty(layer.id, 'text-size', ['*', 0.7, currentSize]);
-              }
-
-              if (id.includes('continent')) {
-                mapRef.current.setLayerZoomRange(layer.id, 0, 24);
-              } else if (id.includes('country')) {
-                mapRef.current.setLayerZoomRange(layer.id, 3.5, 24);
-              } else if (id.includes('state') || id.includes('province')) {
-                mapRef.current.setLayerZoomRange(layer.id, 4.5, 24);
-              } else if (id.includes('city') || id.includes('town') || id.includes('place')) {
-                mapRef.current.setLayerZoomRange(layer.id, 5.0, 24);
               }
             }
           } catch (layerErr) {}
@@ -95,7 +82,7 @@ export default function TorchMap({ showLabels }) {
       setTimeout(() => setIsReady(true), 150);
 
       const spinGlobe = () => {
-        if (!hasInteracted && mapRef.current.getZoom() < 4) {
+        if (!userInteractedRef.current && mapRef.current.getZoom() < 4) {
           const currentCenter = mapRef.current.getCenter();
           currentCenter.lng += 0.05; 
           mapRef.current.jumpTo({ center: currentCenter });
@@ -108,7 +95,7 @@ export default function TorchMap({ showLabels }) {
     });
 
     const stopSpinForever = () => {
-      hasInteracted = true;
+      userInteractedRef.current = true;
       if (spinFrame) cancelAnimationFrame(spinFrame);
     };
 
@@ -120,7 +107,6 @@ export default function TorchMap({ showLabels }) {
     mapRef.current.on('move', () => {
       if (miniMapRef.current) {
         miniMapRef.current.setCenter(mapRef.current.getCenter());
-        miniMapRef.current.setZoom(Math.max(0, mapRef.current.getZoom() - 4));
       }
     });
 
@@ -182,6 +168,58 @@ export default function TorchMap({ showLabels }) {
       });
     } catch (e) {}
   }, [showLabels]);
+
+  // 🚀 FLUID, SINGLE-TRANSITION FLIGHT ENGINE
+  useEffect(() => {
+    if (targetLocation && mapRef.current) {
+      userInteractedRef.current = true; 
+      const map = mapRef.current;
+
+      map.stop(); // Instantly kill any current animations
+
+      const targetCenter = targetLocation.center;
+      let calculatedZoom = 12; // Default for specific points
+      
+      const isMobile = window.innerWidth < 768;
+
+      // Dynamically calculate the final zoom level based on the size of the requested area
+      if (targetLocation.bounds) {
+        const camera = map.cameraForBounds(targetLocation.bounds, { padding: isMobile ? 20 : 50 });
+        if (camera && camera.zoom) {
+          calculatedZoom = Math.min(camera.zoom, 15);
+        }
+      }
+
+      const currentCenter = map.getCenter();
+      const dist = Math.sqrt(
+        Math.pow(currentCenter.lng - targetCenter[0], 2) + 
+        Math.pow(currentCenter.lat - targetCenter[1], 2)
+      );
+
+      // Micro-Jump: If you search for something right next to you, just slide over
+      if (dist < 0.5) {
+        map.easeTo({
+          center: targetCenter,
+          zoom: calculatedZoom,
+          duration: 1200,
+          pitch: 0,
+          essential: true
+        });
+      } 
+      // Full Jump: One seamless parabolic arc (Google Earth style)
+      else {
+        map.flyTo({
+          center: targetCenter,
+          zoom: calculatedZoom,
+          pitch: 0,
+          bearing: 0,
+          speed: 0.8, // Slightly slowed down to give the network time to stream tiles
+          curve: 1.42, // The mathematical curve that creates the "swoop" up to orbit and back down
+          essential: true 
+        });
+      }
+    }
+  }, [targetLocation]);
 
   return (
     <div className="absolute inset-0 z-0 bg-[#06060c] overflow-hidden flex items-center justify-center">
